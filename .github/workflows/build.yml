@@ -19,13 +19,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Install only platform-tools here. Omitting "packages" can make
+      # setup-android request the obsolete SDK package named "tools".
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
 
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager --install \\
+            "platforms;android-35" \\
+            "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
