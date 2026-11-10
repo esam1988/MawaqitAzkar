@@ -19,7 +19,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # v4 no longer requests the removed legacy "tools" SDK package.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
@@ -36,7 +35,7 @@ jobs:
 
       - name: Extract Smart Launcher source
         run: |
-          unzip -o MawaqitAzkar-SmartLauncher-v1.2.zip -d source
+          unzip -o MawaqitAzkar-SmartLauncher-v1.2.1-fixed.zip -d source
 
       - name: Build APK
         run: |
@@ -46,6 +45,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mawaqit-Smart-Launcher-v1.2
+          name: Mawaqit-Smart-Launcher-v1.2.1
           path: source/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
