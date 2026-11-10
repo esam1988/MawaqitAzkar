@@ -141,6 +141,49 @@ jobs:
 
       - name: Align Media3 with compileSdk 35
         run: sed -i 's/1\.11\.1/1.8.1/g' source/app/build.gradle
+      - name: Embed Yemen TV page inside the launcher
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("source/app/src/main/java/de/esam/mawaqitazkar/MainActivity.java")
+          s = p.read_text(encoding="utf-8")
+
+          old_route = 'if (lower.contains("youtube.com") || lower.contains("youtu.be") || lower.contains("quran.com")) {'
+          new_route = 'if (lower.contains("watchfomny.tv") || lower.contains("youtube.com") || lower.contains("youtu.be") || lower.contains("quran.com")) {'
+          if new_route not in s:
+              if old_route not in s:
+                  raise SystemExit("Could not find loadInput web routing condition.")
+              s = s.replace(old_route, new_route, 1)
+
+          anchor = '        video.addView(actions, new LinearLayout.LayoutParams(-1, dp(44)));'
+          button = '''        video.addView(actions, new LinearLayout.LayoutParams(-1, dp(44)));
+
+                  Button yemenChannelsButton = new Button(this);
+                  yemenChannelsButton.setText("قنوات اليمن المباشرة");
+                  video.addView(yemenChannelsButton, new LinearLayout.LayoutParams(-1, dp(40)));
+                  yemenChannelsButton.setOnClickListener(v -> {
+                      String page = "https://watchfomny.tv/Television/A-Tv-Yemen.php";
+                      urlInput.setText(page);
+                      loadInput(page);
+                  });'''
+          if 'setText("قنوات اليمن المباشرة")' not in s:
+              if anchor not in s:
+                  raise SystemExit("Could not find video actions insertion point.")
+              s = s.replace(anchor, button, 1)
+
+          cookie_anchor = '        webView.setWebChromeClient(new WebChromeClient());'
+          cookie_new = '''        webView.setWebChromeClient(new WebChromeClient());
+                  android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);'''
+          if "setAcceptThirdPartyCookies(webView, true)" not in s:
+              if cookie_anchor not in s:
+                  raise SystemExit("Could not find WebView setup.")
+              s = s.replace(cookie_anchor, cookie_new, 1)
+
+          p.write_text(s, encoding="utf-8")
+          print("Yemen TV website now opens in the launcher's embedded WebView.")
+          PY
+
       - name: Build APK
         run: |
           cd source
