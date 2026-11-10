@@ -119,6 +119,26 @@ jobs:
           p.write_text(s, encoding="utf-8")
           print("Streaming apps picker added.")
           PY
+      - name: Fix Android imports and annotation dependency
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          java = Path("source/app/src/main/java/de/esam/mawaqitazkar/MainActivity.java")
+          code = java.read_text(encoding="utf-8")
+          if "import android.content.Intent;" not in code:
+              code = re.sub(r"^(package [^;]+;\s*)", r"\1\nimport android.content.Intent;\n", code, count=1, flags=re.M)
+          java.write_text(code, encoding="utf-8")
+
+          gradle = Path("source/app/build.gradle")
+          build = gradle.read_text(encoding="utf-8")
+          if "androidx.annotation:annotation" not in build:
+              build = re.sub(r"dependencies\s*\\{", 'dependencies {\n    implementation "androidx.annotation:annotation:1.9.1"', build, count=1)
+          gradle.write_text(build, encoding="utf-8")
+          print("Android imports and annotation dependency fixed.")
+          PY
+
       - name: Align Media3 with compileSdk 35
         run: sed -i 's/1\.11\.1/1.8.1/g' source/app/build.gradle
       - name: Build APK
