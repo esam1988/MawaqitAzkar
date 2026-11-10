@@ -4,14 +4,15 @@ name: Build Mawaqit Azkar APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download project
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -20,11 +21,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -35,13 +38,14 @@ jobs:
         run: |
           unzip -o MawaqitAzkar-Android-Project-Kaaba.zip -d source
 
-      - name: Build APK
+      - name: Build Android APK
         run: |
           cd source
           gradle assembleDebug
 
-      - name: Save APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mawaqit-Azkar-APK
+          name: Mawaqit-Azkar-Kaaba-APK
           path: source/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
