@@ -1,4 +1,4 @@
-name: Build Mawaqit Smart Launcher APK v1.3
+name: Build Mawaqit Smart Launcher APK
 
 on:
   workflow_dispatch:
@@ -33,9 +33,9 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract complete v1.3 project
+      - name: Extract Smart Launcher source
         run: |
-          unzip -o MawaqitAzkar-SmartLauncher-v1.3-Embedded-Full.zip -d source
+          unzip -o MawaqitAzkar-SmartLauncher-v1.3-Embedded-Fixed.zip -d source
 
       - name: Build APK
         run: |
@@ -45,6 +45,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mawaqit-Smart-Launcher-v1.3-Embedded-Player
+          name: Mawaqit-Smart-Launcher-v1.3-Embedded-Fixed
           path: source/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
