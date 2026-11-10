@@ -12,39 +12,122 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools'
-
       - name: Install Android SDK packages
-        run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
-
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Extract Smart Launcher source
+      - name: Extract existing project
+        run: unzip -o MawaqitAzkar-SmartLauncher-v1.3-Embedded-Full.zip -d source
+      - name: Add streaming apps picker
         run: |
-          unzip -o MawaqitAzkar-SmartLauncher-v1.3-Embedded-Fixed.zip -d source
-
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("source/app/src/main/java/de/esam/mawaqitazkar/MainActivity.java")
+          s = p.read_text(encoding="utf-8")
+          old = '''        addDockButton(dock, "قنوات M3U", () -> loadM3U(urlInput.getText().toString().trim()));
+                  addDockButton(dock, "YouTube", () -> { urlInput.setText("https://www.youtube.com"); loadInput("https://www.youtube.com"); });
+                  addDockButton(dock, "القرآن", () -> loadInput("https://quran.com"));'''
+          new = '''        addDockButton(dock, "قنوات M3U", () -> loadM3U(urlInput.getText().toString().trim()));
+                  addDockButton(dock, "التطبيقات", this::showStreamingApps);
+                  addDockButton(dock, "YouTube", () -> { urlInput.setText("https://www.youtube.com"); loadInput("https://www.youtube.com"); });
+                  addDockButton(dock, "القرآن", () -> loadInput("https://quran.com"));'''
+          if "private void showStreamingApps()" not in s:
+              if old not in s:
+                  raise SystemExit("Could not find dock buttons in MainActivity.java")
+              s = s.replace(old, new, 1)
+              methods = r'''
+              private boolean isStreamingApp(String label) {
+                  String n = label == null ? "" : label.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+                  if (n.contains("youtube")) return true;
+                  String[] keys = {"blue", "iptv", "tivi", "xciptv", "ott", "smarters", "televizo", "perfect player", "gse", "kodi", "vlc", "live tv", "flix", "m3u", "purple", "dream tv", "smart iptv", "ott navigator", "duplex", "ibo player", "hot player"};
+                  for (String key : keys) if (n.contains(key)) return true;
+                  return false;
+              }
+              private void showStreamingApps() {
+                  final android.content.pm.PackageManager pm = getPackageManager();
+                  final LinkedHashMap<String, android.content.pm.ResolveInfo> found = new LinkedHashMap<>();
+                  Intent launcher = new Intent(Intent.ACTION_MAIN);
+                  launcher.addCategory(Intent.CATEGORY_LAUNCHER);
+                  for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(launcher, 0)) {
+                      if (isStreamingApp(String.valueOf(ri.loadLabel(pm)))) found.put(ri.activityInfo.packageName, ri);
+                  }
+                  Intent leanback = new Intent(Intent.ACTION_MAIN);
+                  leanback.addCategory("android.intent.category.LEANBACK_LAUNCHER");
+                  for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(leanback, 0)) {
+                      if (isStreamingApp(String.valueOf(ri.loadLabel(pm)))) found.put(ri.activityInfo.packageName, ri);
+                  }
+                  List<android.content.pm.ResolveInfo> apps = new ArrayList<>(found.values());
+                  Collections.sort(apps, (a, b) -> String.valueOf(a.loadLabel(pm)).compareToIgnoreCase(String.valueOf(b.loadLabel(pm))));
+                  LinearLayout list = vertical();
+                  list.setPadding(dp(8), dp(6), dp(8), dp(6));
+                  if (apps.isEmpty()) {
+                      TextView empty = label("لم أجد تطبيقات قنوات مثبتة. ثبّت Blue 4K Ultra أو أحد مشغلات IPTV ثم اضغط تحديث.", 15, WHITE, false);
+                      empty.setMinHeight(dp(90));
+                      list.addView(empty);
+                  }
+                  for (android.content.pm.ResolveInfo ri : apps) {
+                      String packageName = ri.activityInfo.packageName;
+                      LinearLayout item = horizontal();
+                      item.setPadding(dp(10), dp(8), dp(10), dp(8));
+                      item.setBackground(shape(0xFF1B2942, 0x665B78A5));
+                      ImageView icon = new ImageView(this);
+                      try { icon.setImageDrawable(ri.loadIcon(pm)); } catch (Exception ignored) {}
+                      item.addView(icon, new LinearLayout.LayoutParams(dp(42), dp(42)));
+                      TextView name = label(String.valueOf(ri.loadLabel(pm)), 16, WHITE, true);
+                      name.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+                      item.addView(name, new LinearLayout.LayoutParams(0, dp(48), 1));
+                      LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(-1, dp(58));
+                      ip.bottomMargin = dp(6);
+                      list.addView(item, ip);
+                      item.setOnClickListener(v -> {
+                          Intent launch = pm.getLaunchIntentForPackage(packageName);
+                          if (launch == null) {
+                              launch = new Intent(Intent.ACTION_MAIN);
+                              launch.addCategory("android.intent.category.LEANBACK_LAUNCHER");
+                              launch.setPackage(packageName);
+                          }
+                          try { startActivity(launch); }
+                          catch (Exception e) { Toast.makeText(this, "تعذر فتح التطبيق. تحقق من تثبيته.", Toast.LENGTH_LONG).show(); }
+                      });
+                  }
+                  ScrollView scroll = new ScrollView(this);
+                  scroll.addView(list, new ScrollView.LayoutParams(-1, -2));
+                  AlertDialog dialog = new AlertDialog.Builder(this)
+                      .setTitle("تطبيقات مشاهدة القنوات")
+                      .setView(scroll)
+                      .setNegativeButton("إغلاق", null)
+                      .setNeutralButton("تحديث", (d, which) -> showStreamingApps())
+                      .create();
+                  dialog.show();
+              }
+              '''
+              anchor = "    private void setVideoExpanded(boolean expanded)"
+              if anchor not in s:
+                  raise SystemExit("Could not find method insertion point")
+              s = s.replace(anchor, methods + anchor, 1)
+          p.write_text(s, encoding="utf-8")
+          print("Streaming apps picker added.")
+          PY
+      - name: Align Media3 with compileSdk 35
+        run: sed -i 's/1\.11\.1/1.8.1/g' source/app/build.gradle
       - name: Build APK
         run: |
           cd source
           gradle assembleDebug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mawaqit-Smart-Launcher-v1.3-Embedded-Fixed
+          name: Mawaqit-Smart-Launcher-Streaming-Apps
           path: source/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
