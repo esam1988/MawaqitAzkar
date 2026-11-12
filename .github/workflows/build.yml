@@ -124,13 +124,11 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           java = Path("source/app/src/main/java/de/esam/mawaqitazkar/MainActivity.java")
           code = java.read_text(encoding="utf-8")
           if "import android.content.Intent;" not in code:
               code = re.sub(r"^(package [^;]+;\s*)", r"\1\nimport android.content.Intent;\n", code, count=1, flags=re.M)
           java.write_text(code, encoding="utf-8")
-
           gradle = Path("source/app/build.gradle")
           build = gradle.read_text(encoding="utf-8")
           if "androidx.annotation:annotation" not in build:
@@ -138,27 +136,22 @@ jobs:
           gradle.write_text(build, encoding="utf-8")
           print("Android imports and annotation dependency fixed.")
           PY
-
       - name: Align Media3 with compileSdk 35
-        run: sed -i 's/1\.11\.1/1.8.1/g' source/app/build.gradle
+        run: sed -i 's/1\\.11\\.1/1.8.1/g' source/app/build.gradle
       - name: Embed Yemen TV pages inside the launcher
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           p = Path("source/app/src/main/java/de/esam/mawaqitazkar/MainActivity.java")
           s = p.read_text(encoding="utf-8")
-
           old_route = 'if (lower.contains("youtube.com") || lower.contains("youtu.be") || lower.contains("quran.com")) {'
           new_route = 'if (lower.contains("elahmad.ru") || lower.contains("watchfomny.tv") || lower.contains("youtube.com") || lower.contains("youtu.be") || lower.contains("quran.com")) {'
           if new_route not in s:
               if old_route not in s:
                   raise SystemExit("Could not find loadInput web routing condition.")
               s = s.replace(old_route, new_route, 1)
-
           anchor = '        video.addView(actions, new LinearLayout.LayoutParams(-1, dp(44)));'
           buttons = '''        video.addView(actions, new LinearLayout.LayoutParams(-1, dp(44)));
-
                   Button yemenChannelsButton = new Button(this);
                   yemenChannelsButton.setText("قنوات اليمن المباشرة");
                   video.addView(yemenChannelsButton, new LinearLayout.LayoutParams(-1, dp(40)));
@@ -167,7 +160,6 @@ jobs:
                       urlInput.setText(page);
                       loadInput(page);
                   });
-
                   Button alSaeedahButton = new Button(this);
                   alSaeedahButton.setText("قناة السعيدة مباشرة");
                   video.addView(alSaeedahButton, new LinearLayout.LayoutParams(-1, dp(40)));
@@ -182,7 +174,6 @@ jobs:
               s = s.replace(anchor, buttons, 1)
           elif 'setText("قناة السعيدة مباشرة")' not in s:
               raise SystemExit("Yemen button exists but Al Saeedah button is missing; refusing duplicate patch.")
-
           cookie_anchor = '        webView.setWebChromeClient(new WebChromeClient());'
           cookie_new = '''        webView.setWebChromeClient(new WebChromeClient());
                   android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);'''
@@ -190,11 +181,21 @@ jobs:
               if cookie_anchor not in s:
                   raise SystemExit("Could not find WebView setup.")
               s = s.replace(cookie_anchor, cookie_new, 1)
-
           p.write_text(s, encoding="utf-8")
           print("Yemen channels and Al Saeedah pages now open in the embedded WebView.")
           PY
-
+      - name: Enlarge video window on portrait screens
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("source/app/src/main/java/de/esam/mawaqitazkar/MainActivity.java")
+          s = p.read_text(encoding="utf-8")
+          if s.count("0.45f") != 2 or s.count("0.55f") != 2:
+              raise SystemExit("Unexpected portrait layout values; refusing unsafe edit.")
+          s = s.replace("0.45f", "0.30f").replace("0.55f", "0.70f")
+          p.write_text(s, encoding="utf-8")
+          print("Portrait layout updated: information 30%, video 70%.")
+          PY
       - name: Build APK
         run: |
           cd source
@@ -202,6 +203,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mawaqit-Smart-Launcher-Yemen-TV
+          name: Mawaqit-Smart-Launcher-Yemen-TV-Larger-Video
           path: source/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
