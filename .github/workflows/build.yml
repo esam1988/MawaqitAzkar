@@ -137,7 +137,7 @@ jobs:
           print("Android imports and annotation dependency fixed.")
           PY
       - name: Align Media3 with compileSdk 35
-        run: sed -i 's/1\\.11\\.1/1.8.1/g' source/app/build.gradle
+        run: sed -i 's/1\.11\.1/1.8.1/g' source/app/build.gradle
       - name: Embed Yemen TV pages inside the launcher
         run: |
           python3 - <<'PY'
