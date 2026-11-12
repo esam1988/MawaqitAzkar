@@ -134,14 +134,14 @@ jobs:
           gradle = Path("source/app/build.gradle")
           build = gradle.read_text(encoding="utf-8")
           if "androidx.annotation:annotation" not in build:
-              build = re.sub(r"dependencies\s*\\{", 'dependencies {\n    implementation "androidx.annotation:annotation:1.9.1"', build, count=1)
+              build = re.sub(r"dependencies\s*\{", 'dependencies {\n    implementation "androidx.annotation:annotation:1.9.1"', build, count=1)
           gradle.write_text(build, encoding="utf-8")
           print("Android imports and annotation dependency fixed.")
           PY
 
       - name: Align Media3 with compileSdk 35
         run: sed -i 's/1\.11\.1/1.8.1/g' source/app/build.gradle
-      - name: Embed Yemen TV page inside the launcher
+      - name: Embed Yemen TV pages inside the launcher
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -150,27 +150,38 @@ jobs:
           s = p.read_text(encoding="utf-8")
 
           old_route = 'if (lower.contains("youtube.com") || lower.contains("youtu.be") || lower.contains("quran.com")) {'
-          new_route = 'if (lower.contains("watchfomny.tv") || lower.contains("youtube.com") || lower.contains("youtu.be") || lower.contains("quran.com")) {'
+          new_route = 'if (lower.contains("elahmad.ru") || lower.contains("watchfomny.tv") || lower.contains("youtube.com") || lower.contains("youtu.be") || lower.contains("quran.com")) {'
           if new_route not in s:
               if old_route not in s:
                   raise SystemExit("Could not find loadInput web routing condition.")
               s = s.replace(old_route, new_route, 1)
 
           anchor = '        video.addView(actions, new LinearLayout.LayoutParams(-1, dp(44)));'
-          button = '''        video.addView(actions, new LinearLayout.LayoutParams(-1, dp(44)));
+          buttons = '''        video.addView(actions, new LinearLayout.LayoutParams(-1, dp(44)));
 
                   Button yemenChannelsButton = new Button(this);
                   yemenChannelsButton.setText("قنوات اليمن المباشرة");
                   video.addView(yemenChannelsButton, new LinearLayout.LayoutParams(-1, dp(40)));
                   yemenChannelsButton.setOnClickListener(v -> {
-                      String page = "https://watchfomny.tv/Television/A-Tv-Yemen.php";
+                      String page = "https://www.elahmad.ru/tv/mobile-live-stream/?id=yemen";
+                      urlInput.setText(page);
+                      loadInput(page);
+                  });
+
+                  Button alSaeedahButton = new Button(this);
+                  alSaeedahButton.setText("قناة السعيدة مباشرة");
+                  video.addView(alSaeedahButton, new LinearLayout.LayoutParams(-1, dp(40)));
+                  alSaeedahButton.setOnClickListener(v -> {
+                      String page = "https://www.elahmad.ru/tv/mobiletv/glarb.php?id=alsaeedahtv";
                       urlInput.setText(page);
                       loadInput(page);
                   });'''
           if 'setText("قنوات اليمن المباشرة")' not in s:
               if anchor not in s:
                   raise SystemExit("Could not find video actions insertion point.")
-              s = s.replace(anchor, button, 1)
+              s = s.replace(anchor, buttons, 1)
+          elif 'setText("قناة السعيدة مباشرة")' not in s:
+              raise SystemExit("Yemen button exists but Al Saeedah button is missing; refusing duplicate patch.")
 
           cookie_anchor = '        webView.setWebChromeClient(new WebChromeClient());'
           cookie_new = '''        webView.setWebChromeClient(new WebChromeClient());
@@ -181,7 +192,7 @@ jobs:
               s = s.replace(cookie_anchor, cookie_new, 1)
 
           p.write_text(s, encoding="utf-8")
-          print("Yemen TV website now opens in the launcher's embedded WebView.")
+          print("Yemen channels and Al Saeedah pages now open in the embedded WebView.")
           PY
 
       - name: Build APK
@@ -191,6 +202,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mawaqit-Smart-Launcher-Streaming-Apps
+          name: Mawaqit-Smart-Launcher-Yemen-TV
           path: source/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
